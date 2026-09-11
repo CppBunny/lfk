@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/janosmiko/lfk/internal/app/scheduler"
+	"github.com/janosmiko/lfk/internal/images"
 	"github.com/janosmiko/lfk/internal/k8s"
 	"github.com/janosmiko/lfk/internal/logger"
 	"github.com/janosmiko/lfk/internal/ui"
@@ -193,7 +194,7 @@ func (m Model) execKubectlDebug() tea.Cmd {
 	}
 
 	ns := m.actionNamespace()
-	args := []string{"debug", m.actionCtx.name, "-it", "--image=busybox", "--context", m.kubectlContext(m.actionCtx.context), "-n", ns}
+	args := []string{"debug", m.actionCtx.name, "-it", "--image=" + images.Debug(), "--context", m.kubectlContext(m.actionCtx.context), "-n", ns}
 
 	cmd := exec.Command(kubectlPath, k8s.DemoKubectlArgs(args)...)
 	cmd.Env = append(os.Environ(), "KUBECONFIG="+m.client.KubeconfigPathForContext(m.actionCtx.context))
@@ -229,7 +230,7 @@ func (m Model) runDebugPod() tea.Cmd {
 	podName := "lfk-debug-" + randomSuffix(5)
 
 	args := []string{
-		"run", podName, "--image=alpine", "--rm", "-it",
+		"run", podName, "--image=" + images.DebugPod(), "--rm", "-it",
 		"--restart=Never", "-n", ns, "--context", m.kubectlContext(ctx), "--", "sh",
 	}
 
@@ -255,6 +256,37 @@ func (m Model) runDebugPod() tea.Cmd {
 	return runInteractiveShellExec(cmd, title, "Debug pod", true)
 }
 
+// debugMountManifest builds the --overrides pod spec for the Debug Mount
+// action: a single container running sh with the PVC mounted at /data.
+//
+// image is marshalled rather than interpolated as a bare JSON string body.
+// It originates in user config, and a value carrying a quote would
+// otherwise escape the string and inject sibling keys into the container
+// spec — rewriting command, securityContext or volumeMounts.
+func debugMountManifest(podName, pvcName, image string) (string, error) {
+	imageJSON, err := json.Marshal(image)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode debug mount image: %w", err)
+	}
+	return fmt.Sprintf(`{
+		"apiVersion": "v1",
+		"kind": "Pod",
+		"metadata": {"name": "%s"},
+		"spec": {
+			"containers": [{
+				"name": "debug",
+				"image": %s,
+				"command": ["sh"],
+				"stdin": true,
+				"tty": true,
+				"volumeMounts": [{"name": "data", "mountPath": "/data"}]
+			}],
+			"volumes": [{"name": "data", "persistentVolumeClaim": {"claimName": "%s"}}],
+			"restartPolicy": "Never"
+		}
+	}`, podName, imageJSON, pvcName), nil
+}
+
 func (m Model) runDebugPodWithPVC() tea.Cmd {
 	kubectlPath, err := k8s.KubectlPath()
 	if err != nil {
@@ -268,26 +300,19 @@ func (m Model) runDebugPodWithPVC() tea.Cmd {
 	pvcName := m.actionCtx.name
 	podName := "lfk-debug-pvc-" + randomSuffix(5)
 
-	manifest := fmt.Sprintf(`{
-		"apiVersion": "v1",
-		"kind": "Pod",
-		"metadata": {"name": "%s"},
-		"spec": {
-			"containers": [{
-				"name": "debug",
-				"image": "alpine",
-				"command": ["sh"],
-				"stdin": true,
-				"tty": true,
-				"volumeMounts": [{"name": "data", "mountPath": "/data"}]
-			}],
-			"volumes": [{"name": "data", "persistentVolumeClaim": {"claimName": "%s"}}],
-			"restartPolicy": "Never"
+	// One resolved value feeds both the --overrides manifest and the
+	// --image flag below: kubectl applies the override spec, so a mismatch
+	// would run an image the flag does not name.
+	mountImage := images.DebugMount()
+	manifest, err := debugMountManifest(podName, pvcName, mountImage)
+	if err != nil {
+		return func() tea.Msg {
+			return actionResultMsg{err: err}
 		}
-	}`, podName, pvcName)
+	}
 
 	args := []string{
-		"run", podName, "--image=alpine", "-it", "--rm",
+		"run", podName, "--image=" + mountImage, "-it", "--rm",
 		"--restart=Never", "--context", m.kubectlContext(ctx), "-n", ns,
 		"--overrides", manifest, "--", "sh",
 	}
@@ -349,7 +374,7 @@ func nodeShellOverrides(podName, nodeName string) (string, error) {
 			},
 			"containers": []map[string]any{{
 				"name":  podName,
-				"image": "busybox",
+				"image": images.NodeShell(),
 				"stdin": true,
 				"tty":   true,
 				"securityContext": map[string]any{
@@ -379,7 +404,7 @@ func nodeShellArgs(podName, namespace, kctx, overrides string) []string {
 		"run", podName,
 		"-n", namespace,
 		"--rm", "-it", "--restart=Never",
-		"--image=busybox",
+		"--image=" + images.NodeShell(),
 		"--context", kctx,
 		"--overrides=" + overrides,
 	}

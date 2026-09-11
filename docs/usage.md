@@ -341,6 +341,10 @@ is removed when the shell exits.
 
 Node shell is a mutating action and is gated by the read-only check.
 
+The image defaults to `busybox` and is configurable via
+`images.node_shell` (see [config-reference.md](config-reference.md#images)).
+A replacement must ship `nsenter`.
+
 ## Cluster color coding
 
 Tag any cluster with a background color so the title bar tints the
@@ -531,6 +535,11 @@ auto-detected:
 Hardened non-root pods can't grant `NET_ADMIN` / `NET_RAW`. Capture fails
 with a message pointing at kubeshark. Install with
 `helm install kubeshark kubeshark/kubeshark -n kubeshark --create-namespace`.
+
+The `kubectl debug` backend uses `nicolaka/netshoot:v0.13`, configurable
+via `images.traffic_capture` (see
+[config-reference.md](config-reference.md#images)). A replacement must ship
+`tcpdump`.
 
 pcap output: `$XDG_STATE_HOME/lfk/captures/` (default
 `~/.local/state/lfk/captures/`). The full per-phase keymap lives in

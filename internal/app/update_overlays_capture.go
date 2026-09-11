@@ -2,6 +2,7 @@ package app
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/janosmiko/lfk/internal/images"
 	"github.com/janosmiko/lfk/internal/k8s"
 	"github.com/janosmiko/lfk/internal/model"
 )
@@ -196,6 +197,7 @@ func (m Model) startSelectedBackend() (tea.Model, tea.Cmd) {
 			Interface: m.captureOverlay.iface,
 			SnapLen:   m.captureOverlay.snaplen,
 			BPFFilter: m.captureOverlay.filterValue,
+			Image:     images.TrafficCapture(),
 		}
 		// Allocate the ring on `m` (not on a local copy inside startCapture).
 		// startCapture's tea.Cmd closes over the same buffer; the renderer

@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/janosmiko/lfk/internal/images"
 )
 
 func TestKubectlDebugBackend_Argv_FullSpec(t *testing.T) {
@@ -19,7 +21,7 @@ func TestKubectlDebugBackend_Argv_FullSpec(t *testing.T) {
 		"-n", "ns",
 		"--context", "ctx",
 		"pod/pod1",
-		"--image=" + netshootImage,
+		"--image=" + images.DefaultTrafficCapture,
 		"--attach=true",
 		"-c", "lfk-trafcap-test",
 		"--target=app",
@@ -236,21 +238,12 @@ func TestKubectlDebugBackend_Argv_BPFFilterShellEscaped(t *testing.T) {
 	}
 }
 
-func TestKubectlDebugBackend_Argv_NetshootImagePinned(t *testing.T) {
+func TestKubectlDebugBackend_Argv_DefaultImagePinned(t *testing.T) {
 	req := CaptureRequest{Context: "ctx", Namespace: "ns", PodName: "pod1", Interface: "any"}
-	got := kubectlDebugArgv(req, "lfk-trafcap-test")
-	var imageArg string
-	for _, a := range got {
-		if len(a) >= len("--image=") && a[:len("--image=")] == "--image=" {
-			imageArg = a[len("--image="):]
-			break
-		}
-	}
-	if imageArg == "" {
-		t.Fatal("argv missing --image= flag")
-	}
+	imageArg := argvImage(t, kubectlDebugArgv(req, "lfk-trafcap-test"))
 	// Image must include either an explicit tag or digest. Reject the implicit
-	// ":latest" that results from a bare repo name.
+	// ":latest" that results from a bare repo name. Scanning backwards stops
+	// at the last "/" so a registry host:port is not read as a tag.
 	hasTag := false
 	for i := len(imageArg) - 1; i >= 0; i-- {
 		if imageArg[i] == ':' || imageArg[i] == '@' {
@@ -264,6 +257,41 @@ func TestKubectlDebugBackend_Argv_NetshootImagePinned(t *testing.T) {
 	if !hasTag {
 		t.Errorf("image %q is not pinned (no :tag or @digest)", imageArg)
 	}
+}
+
+// The resolved image travels on the request so internal/k8s never reads the
+// config; an empty field must keep the compiled default.
+func TestKubectlDebugBackend_Argv_ImageOverride(t *testing.T) {
+	tests := []struct {
+		name  string
+		image string
+		want  string
+	}{
+		{"empty falls back to the default", "", images.DefaultTrafficCapture},
+		{"whitespace falls back to the default", "   ", images.DefaultTrafficCapture},
+		{"override is used verbatim", "registry.internal:5000/netshoot:v1", "registry.internal:5000/netshoot:v1"},
+		{"digest pin survives", "nicolaka/netshoot@sha256:abc", "nicolaka/netshoot@sha256:abc"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := CaptureRequest{Context: "ctx", Namespace: "ns", PodName: "pod1", Interface: "any", Image: tt.image}
+			if got := argvImage(t, kubectlDebugArgv(req, "lfk-trafcap-test")); got != tt.want {
+				t.Errorf("--image= %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// argvImage extracts the --image= value from a kubectl argv.
+func argvImage(t *testing.T, argv []string) string {
+	t.Helper()
+	for _, a := range argv {
+		if v, ok := strings.CutPrefix(a, "--image="); ok {
+			return v
+		}
+	}
+	t.Fatal("argv missing --image= flag")
+	return ""
 }
 
 // TestPcapPreambleSkipper_SplitReads ensures the skipper accumulates preamble

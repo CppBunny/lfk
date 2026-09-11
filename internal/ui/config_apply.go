@@ -303,6 +303,7 @@ func applyDataAccessConfig(cfg configFile) {
 			ConfigKubesharkNamespace = ns
 		}
 	}
+	applyImagesConfig(cfg)
 }
 
 // applyLogViewerConfig wires every log-viewer setting (tail sizes, ANSI

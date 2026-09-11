@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/janosmiko/lfk/internal/app/scheduler"
+	"github.com/janosmiko/lfk/internal/images"
 	"github.com/janosmiko/lfk/internal/k8s"
 	"github.com/janosmiko/lfk/internal/model"
 )
@@ -134,6 +135,13 @@ monitoring:
       discover_path_prefix: true
 kubeshark:
   namespace: traffic-ns
+images:
+  registry: registry.internal:5000
+  debug: dbg-img
+  debug_pod: pod-img
+  debug_mount: mount-img
+  node_shell: node-img
+  traffic_capture: cap-img
 security:
   enabled: false
   hide_badges: true
@@ -281,6 +289,12 @@ func TestLoadConfig_AllSettingsWired(t *testing.T) {
 	assert.False(t, ConfigKubeconfigExclusive, "kubeconfig_exclusive")
 	assert.Equal(t, []string{"*.log", "vault-*"}, ConfigKubeconfigIgnore, "kubeconfig_ignore")
 	assert.Equal(t, "traffic-ns", ConfigKubesharkNamespace, "kubeshark")
+	assert.Equal(t, "registry.internal:5000", images.ConfigRegistry, "images.registry")
+	assert.Equal(t, "dbg-img", images.ConfigDebug, "images.debug")
+	assert.Equal(t, "pod-img", images.ConfigDebugPod, "images.debug_pod")
+	assert.Equal(t, "mount-img", images.ConfigDebugMount, "images.debug_mount")
+	assert.Equal(t, "node-img", images.ConfigNodeShell, "images.node_shell")
+	assert.Equal(t, "cap-img", images.ConfigTrafficCapture, "images.traffic_capture")
 
 	// security section.
 	assert.False(t, ConfigSecurityEnabled, "security.enabled")
@@ -534,6 +548,7 @@ var wiringCoveredFields = map[string]string{
 	"security":                   "TestLoadConfig_AllSettingsWired",
 	"rightsizing_defaults":       "TestLoadConfig_AllSettingsWired",
 	"kubeshark":                  "TestLoadConfig_AllSettingsWired",
+	"images":                     "TestLoadConfig_AllSettingsWired + TestApplyImagesConfig_* (internal/images has its own resolution tests)",
 	"scheduler":                  "TestLoadConfig_AllSettingsWired",
 	"kubeconfig_dir":             "TestLoadConfig_AllSettingsWired",
 	"kubeconfig_ignore":          "TestLoadConfig_AllSettingsWired + TestLoadConfig_KubeconfigIgnore*",
@@ -690,7 +705,20 @@ func snapshotAllConfigGlobals(t *testing.T) func() {
 	origShowPrio := scheduler.ConfigShowPriorityInOverlay
 	origAging := scheduler.ConfigAgingThreshold
 
+	origImgRegistry := images.ConfigRegistry
+	origImgDebug := images.ConfigDebug
+	origImgDebugPod := images.ConfigDebugPod
+	origImgDebugMount := images.ConfigDebugMount
+	origImgNodeShell := images.ConfigNodeShell
+	origImgTrafficCapture := images.ConfigTrafficCapture
+
 	return func() {
+		images.ConfigRegistry = origImgRegistry
+		images.ConfigDebug = origImgDebug
+		images.ConfigDebugPod = origImgDebugPod
+		images.ConfigDebugMount = origImgDebugMount
+		images.ConfigNodeShell = origImgNodeShell
+		images.ConfigTrafficCapture = origImgTrafficCapture
 		ActiveSchemeName = origScheme
 		ConfigDarkColorscheme = origDarkScheme
 		ConfigLightColorscheme = origLightScheme

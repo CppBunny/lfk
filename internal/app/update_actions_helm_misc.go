@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/janosmiko/lfk/internal/images"
 	"github.com/janosmiko/lfk/internal/k8s"
 	"github.com/janosmiko/lfk/internal/model"
 )
@@ -13,7 +14,7 @@ import (
 func (m Model) executeActionShell() (tea.Model, tea.Cmd) {
 	name := m.actionCtx.name
 	ctx := m.actionCtx.context
-	m.addLogEntry("DBG", fmt.Sprintf("$ kubectl run lfk-node-shell-<rand> -n kube-system --rm -it --restart=Never --image=busybox --context %s --overrides='<spec pinned to %s with hostPID/IPC/Net + privileged + nsenter + system-node-critical + tolerate-everything>'", ctx, name))
+	m.addLogEntry("DBG", fmt.Sprintf("$ kubectl run lfk-node-shell-<rand> -n kube-system --rm -it --restart=Never --image=%s --context %s --overrides='<spec pinned to %s with hostPID/IPC/Net + privileged + nsenter + system-node-critical + tolerate-everything>'", images.NodeShell(), ctx, name))
 	return m, m.execKubectlNodeShell()
 }
 
@@ -21,7 +22,7 @@ func (m Model) executeActionShell() (tea.Model, tea.Cmd) {
 func (m Model) executeActionDebugPod() (tea.Model, tea.Cmd) {
 	ns := m.actionCtx.namespace
 	ctx := m.actionCtx.context
-	m.addLogEntry("DBG", fmt.Sprintf("$ kubectl run lfk-debug-<id> --image=alpine --rm -it --restart=Never -n %s --context %s -- sh", ns, ctx))
+	m.addLogEntry("DBG", fmt.Sprintf("$ kubectl run lfk-debug-<id> --image=%s --rm -it --restart=Never -n %s --context %s -- sh", images.DebugPod(), ns, ctx))
 	return m, m.runDebugPod()
 }
 
@@ -87,7 +88,7 @@ func (m Model) executeActionDebugMount() (tea.Model, tea.Cmd) {
 	ns := m.actionCtx.namespace
 	name := m.actionCtx.name
 	ctx := m.actionCtx.context
-	m.addLogEntry("DBG", fmt.Sprintf("$ kubectl run debug-pvc --image=alpine -it --rm --restart=Never --overrides='{...pvc:%s...}' -n %s --context %s", name, ns, ctx))
+	m.addLogEntry("DBG", fmt.Sprintf("$ kubectl run debug-pvc --image=%s -it --rm --restart=Never --overrides='{...pvc:%s...}' -n %s --context %s", images.DebugMount(), name, ns, ctx))
 	return m, m.runDebugPodWithPVC()
 }
 

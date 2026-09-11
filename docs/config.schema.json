@@ -389,6 +389,9 @@
     "kubeshark": {
       "anyOf": [{ "$ref": "#/definitions/kubeshark" }, { "type": "null" }]
     },
+    "images": {
+      "anyOf": [{ "$ref": "#/definitions/images" }, { "type": "null" }]
+    },
     "scheduler": {
       "anyOf": [{ "$ref": "#/definitions/scheduler" }, { "type": "null" }]
     },
@@ -1011,6 +1014,42 @@
           "type": "string",
           "description": "Namespace where Service kubeshark-hub lives. Defaults to \"kubeshark\".",
           "default": "kubeshark"
+        }
+      }
+    },
+    "images": {
+      "type": "object",
+      "description": "Container images lfk spawns for its own helper workloads. Every field is optional; unset keeps the built-in default. \"registry\" is prefixed onto any image below that does not already name a registry host (first path component containing \".\" or \":\", or equal to \"localhost\"), so a fully-qualified per-image override is used verbatim.",
+      "additionalProperties": false,
+      "properties": {
+        "registry": {
+          "type": "string",
+          "description": "Registry, optionally with a path prefix, hosting the helper images (e.g. \"registry.internal:5000\" or \"mirror.example.com/proxy/dockerhub\"). Empty pulls each image from its own default registry."
+        },
+        "debug": {
+          "type": "string",
+          "description": "Image for the Debug action's ephemeral container. Needs a POSIX shell at /bin/sh.",
+          "default": "busybox"
+        },
+        "debug_pod": {
+          "type": "string",
+          "description": "Image for the standalone Debug Pod action. Needs a POSIX shell at /bin/sh.",
+          "default": "alpine"
+        },
+        "debug_mount": {
+          "type": "string",
+          "description": "Image for the Debug Mount action's pod, which mounts the selected PVC at /data. Needs a POSIX shell at /bin/sh.",
+          "default": "alpine"
+        },
+        "node_shell": {
+          "type": "string",
+          "description": "Image for the Node Shell action's privileged pod. Must ship nsenter — the pod enters the host namespaces with `nsenter --target 1`.",
+          "default": "busybox"
+        },
+        "traffic_capture": {
+          "type": "string",
+          "description": "Image for the Traffic Capture overlay's kubectl-debug backend. Must ship tcpdump, and runs with NET_ADMIN/NET_RAW in the target pod's network namespace.",
+          "default": "nicolaka/netshoot:v0.13"
         }
       }
     },

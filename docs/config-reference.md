@@ -1218,6 +1218,63 @@ page), `Ctrl+]` `Ctrl+B`/`Ctrl+F` (full page), `Ctrl+]` `g`/`G`
 If the Service isn't found in this namespace, the kubeshark chip is
 omitted from the backend picker.
 
+## images
+
+lfk spawns a few helper containers of its own. Point them at an internal
+registry, or swap the image outright, when the cluster cannot reach the
+default registry or your policy requires approved base images.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `images.registry` | string | (none) | Registry, optionally with a path prefix, hosting the helper images below. Prefixed onto any image that does not already name a registry host. |
+| `images.debug` | string | `busybox` | Ephemeral container for the `Debug` action. Needs a POSIX shell. |
+| `images.debug_pod` | string | `alpine` | Standalone pod for the `Debug Pod` action. Needs a POSIX shell. |
+| `images.debug_mount` | string | `alpine` | Pod for the `Debug Mount` action, which mounts the selected PVC at `/data`. Needs a POSIX shell. |
+| `images.node_shell` | string | `busybox` | Privileged pod for the `Node Shell` action. **Must ship `nsenter`** — the pod enters the host namespaces with `nsenter --target 1`. |
+| `images.traffic_capture` | string | `nicolaka/netshoot:v0.13` | Ephemeral container for the Traffic Capture overlay's `kubectl debug` backend. **Must ship `tcpdump`.** |
+
+`registry` is prefixed onto an image only when that image does not already
+name a registry host, using the same rule as Docker and the OCI spec: the
+first path component is a host if it contains a `.` or a `:`, or is exactly
+`localhost`. That makes the two knobs compose predictably:
+
+```yaml
+images:
+  registry: registry.internal:5000
+```
+
+rewrites every default — `busybox` becomes
+`registry.internal:5000/busybox`, `nicolaka/netshoot:v0.13` becomes
+`registry.internal:5000/nicolaka/netshoot:v0.13` — while a per-image
+override that names its own host is left alone:
+
+```yaml
+images:
+  registry: registry.internal:5000
+  node_shell: other.registry.io/ops/toolbox:2   # used verbatim
+  debug: toolbox                                # -> registry.internal:5000/toolbox
+```
+
+A tag or digest is never mistaken for a host, so `busybox:1.36` and
+`busybox@sha256:...` are prefixed normally.
+
+Two constraints are worth repeating, because lfk cannot check them before
+`kubectl` runs: `node_shell` must provide `nsenter`, and `traffic_capture`
+must provide `tcpdump`. The traffic-capture container additionally runs with
+`NET_ADMIN`/`NET_RAW` in the target pod's network namespace, so treat a
+change there as a security-relevant one. For hardened setups, pin by digest
+rather than tag so registry tampering is detected:
+
+```yaml
+images:
+  traffic_capture: nicolaka/netshoot@sha256:...
+```
+
+Blank values are ignored — a key present but empty keeps the default rather
+than producing an empty `--image=` flag. Values are not otherwise validated;
+`kubectl` reports a malformed or unreachable reference better than a startup
+guess could.
+
 ## Color schemes
 
 Over 460 built-in color schemes are available, generated from [ghostty terminal themes](https://github.com/ghostty-org/ghostty). Sample list:

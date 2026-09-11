@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/janosmiko/lfk/internal/images"
 	"github.com/janosmiko/lfk/internal/ui"
 )
 
@@ -315,7 +316,7 @@ func (m Model) executeActionDebug() (tea.Model, tea.Cmd) {
 	ns := m.actionCtx.namespace
 	name := m.actionCtx.name
 	ctx := m.actionCtx.context
-	m.addLogEntry("DBG", fmt.Sprintf("$ kubectl debug %s -it --image=busybox -n %s --context %s", name, ns, ctx))
+	m.addLogEntry("DBG", fmt.Sprintf("$ kubectl debug %s -it --image=%s -n %s --context %s", name, images.Debug(), ns, ctx))
 	return m, m.execKubectlDebug()
 }
 

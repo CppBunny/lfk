@@ -45,6 +45,11 @@ type CaptureRequest struct {
 	SnapLen   int    // default 65535
 	BPFFilter string // optional
 	OutputDir string // default: "captures" in the lfk state directory
+	// Image overrides the ephemeral debug container's image for the
+	// kubectl-debug backend. Empty uses images.DefaultTrafficCapture. Set
+	// by the app layer from the images config so internal/k8s does not
+	// have to read internal/ui. Must ship tcpdump.
+	Image string
 }
 
 // CaptureEntry is one running or completed capture.

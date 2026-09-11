@@ -227,6 +227,7 @@ Cloudsmith is a hosted package management service that stores and serves package
 - Crash Investigator with `x` -> `I`: [keybindings.md](docs/keybindings.md#crash-investigator-overlay)
 - Embedded terminal for exec and shell, `Ctrl+T` cycles the mode: [features.md](docs/features.md#embedded-terminal)
 - Node shell with `x` -> `s`: [usage.md](docs/usage.md#node-shell)
+- Helper images for debug pods, node shell and capture, with a registry override: [config-reference.md](docs/config-reference.md#images)
 
 ### Creating and copying
 

@@ -13,17 +13,25 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/janosmiko/lfk/internal/images"
 	"github.com/janosmiko/lfk/internal/logger"
 )
 
-// netshootImage is the pinned image used for the ephemeral debug container.
+// captureImage returns the image for the ephemeral debug container. The
+// resolved value travels on CaptureRequest.Image so the app layer stays
+// the only place that reads config; an empty field falls back to the
+// compiled default (images.DefaultTrafficCapture), which keeps direct
+// CaptureManager callers and tests working without wiring config.
 //
-// Pinned by tag rather than digest to keep the build self-contained. For
-// hardened deployments swap to a digest pin (e.g.
-// "nicolaka/netshoot@sha256:...") so registry tampering is detected.
-// Bumping this image needs a security review — the container runs with
-// NET_ADMIN/NET_RAW in the target pod's network namespace.
-const netshootImage = "nicolaka/netshoot:v0.13"
+// The image must ship tcpdump. Changing it needs a security review — the
+// container runs with NET_ADMIN/NET_RAW in the target pod's network
+// namespace.
+func captureImage(req CaptureRequest) string {
+	if img := strings.TrimSpace(req.Image); img != "" {
+		return img
+	}
+	return images.DefaultTrafficCapture
+}
 
 type kubectlDebugBackend struct{}
 
@@ -192,7 +200,7 @@ func kubectlDebugArgv(req CaptureRequest, debugContainer string) []string {
 		"-n", req.Namespace,
 		"--context", req.Context,
 		"pod/" + req.PodName,
-		"--image=" + netshootImage,
+		"--image=" + captureImage(req),
 		"--attach=true",
 		"-c", debugContainer,
 	}

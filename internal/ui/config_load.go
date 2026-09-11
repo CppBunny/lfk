@@ -270,6 +270,11 @@ type configFile struct {
 	// Traffic Capture overlay. Only the namespace is plumbed today;
 	// future fields can land here without further config schema changes.
 	Kubeshark *KubesharkConfig `json:"kubeshark" yaml:"kubeshark"`
+	// Images overrides the container images lfk spawns for its own helper
+	// workloads (debug containers, debug pods, node shells, traffic
+	// capture) and sets an optional registry prefix for them. Unset
+	// fields keep the compiled defaults in internal/images.
+	Images *ImagesConfig `json:"images" yaml:"images"`
 	// Scheduler holds the runtime knobs for the priority task scheduler.
 	// All fields are optional. Missing keys fall back to the scheduler
 	// package's compiled defaults.

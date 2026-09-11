@@ -740,6 +740,31 @@ confirm_on_exit: true
 # kubeshark:
 #   namespace: kubeshark
 
+# ─── Helper Images ────────────────────────────────────────────────────────────
+# Container images lfk spawns for its own helper workloads. Useful when the
+# cluster cannot reach the default registry (air-gapped, pull-through mirror)
+# or policy requires approved base images.
+#
+# "registry" is prefixed onto any image below that does not already name a
+# registry host (first path component with a "." or ":", or exactly
+# "localhost"), so a fully-qualified per-image override is used verbatim.
+# A tag or digest is never mistaken for a host: busybox:1.36 is prefixed.
+#
+# Two hard requirements lfk cannot check before kubectl runs:
+#   node_shell      must ship nsenter (enters host namespaces).
+#   traffic_capture must ship tcpdump, and runs with NET_ADMIN/NET_RAW in the
+#                   target pod's network namespace — changing it is a
+#                   security-relevant change. Pin by digest to harden.
+#
+# Blank values are ignored and keep the default.
+# images:
+#   registry: registry.internal:5000
+#   debug: busybox                            # Debug (ephemeral container)
+#   debug_pod: alpine                         # Debug Pod
+#   debug_mount: alpine                       # Debug Mount (PVC at /data)
+#   node_shell: busybox                       # Node Shell (needs nsenter)
+#   traffic_capture: nicolaka/netshoot:v0.13   # Traffic Capture (needs tcpdump)
+
 # ─── Informer Cache ───────────────────────────────────────────────────────────
 # How resource list calls are routed:
 #   "off"     - round-trip every list to the API server (matches kubectl).
